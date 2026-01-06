@@ -49,121 +49,51 @@ st.markdown("""
         font-style: italic;
         margin-bottom: 16px;
     }
-
-    /* IMPROVED: Clickable sub-objective boxes */
-    .subobjective-box {
-        background: #f9fafb;
-        border-left: 4px solid #1e40af;
-        padding: 14px;
-        border-radius: 8px;
-        margin-bottom: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        text-decoration: none;
-    }
-
-    .subobjective-box:hover {
-        background: #e0f2fe;
-        box-shadow: 0 4px 12px rgba(30, 64, 175, 0.15);
-        transform: translateX(4px);
-    }
-
-    .subobjective-box.cost { border-left-color: #ef4444; }
-    .subobjective-box.quality { border-left-color: #059669; }
-    .subobjective-box.efficiency { border-left-color: #f59e0b; }
-
-    .subobjective-info {
-        flex-grow: 1;
-    }
-
-    .subobjective-title {
-        font-size: 13px;
-        font-weight: 600;
-        color: #1f2937;
-        margin-bottom: 4px;
-    }
-
-    .subobjective-value {
-        font-size: 24px;
-        font-weight: 700;
-        color: #1e40af;
-        margin: 6px 0;
-    }
-
-    .subobjective-trend {
-        font-size: 12px;
-        font-weight: 600;
-    }
-
-    .sparkline-container {
-        width: 100px;
-        height: 50px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    /* Trend indicators */
-    .trend-up { color: #059669; font-weight: 600; }
-    .trend-down { color: #ef4444; font-weight: 600; }
-    .trend-neutral { color: #6b7280; font-weight: 600; }
-
-    /* IMPROVED: Chart container for vertical centering */
-    .chart-container {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 400px;
-    }
-    
-    /* Detail Section */
-    .detail-section {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        padding: 24px;
-        border-radius: 12px;
-        margin-top: 24px;
-    }
-
-    .detail-title {
-        font-size: 18px;
-        font-weight: 700;
-        color: #1f2937;
-        margin-bottom: 20px;
-    }
     
     /* Streamlit button styling */
     .stButton > button {
         width: 100%;
-        padding: 12px;
+        padding: 14px;
         border-radius: 8px;
         border: none;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         font-weight: 600;
+        font-size: 13px;
         transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
     }
     
     .stButton > button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
     }
+    
+    .metric-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: #1e40af;
+        margin: 8px 0;
+    }
+    
+    .metric-trend {
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    .trend-up { color: #059669; }
+    .trend-down { color: #ef4444; }
+    .trend-neutral { color: #6b7280; }
     </style>
 """, unsafe_allow_html=True)
 
 # ==================== SESSION STATE FOR NAVIGATION ====================
 if 'current_view' not in st.session_state:
     st.session_state.current_view = 'home'
-if 'selected_kpi' not in st.session_state:
-    st.session_state.selected_kpi = None
 
-def navigate_to(view, kpi=None):
+def navigate_to(view):
     """Navigate to a different view"""
     st.session_state.current_view = view
-    st.session_state.selected_kpi = kpi
     st.rerun()
 
 # ==================== MOCK DATA GENERATOR ====================
@@ -280,33 +210,54 @@ def create_mock_department_data():
     return pd.DataFrame(data_list)
 
 # ==================== HELPER FUNCTIONS ====================
-def create_improved_sparkline(values, color='#1e40af', show_area=True):
-    """Create improved sparkline chart"""
+def create_improved_sparkline(values, trend_type='neutral'):
+    """IMPROVED: Create sparkline with trend-based colors and labels"""
+    
+    # Determine color based on trend
+    if trend_type == 'up':
+        color = '#059669'  # Green for positive
+        fill_color = 'rgba(5, 150, 105, 0.2)'
+    elif trend_type == 'down':
+        color = '#ef4444'  # Red for negative
+        fill_color = 'rgba(239, 68, 68, 0.2)'
+    else:
+        color = '#6b7280'  # Gray for neutral
+        fill_color = 'rgba(107, 114, 128, 0.2)'
+    
     fig = go.Figure()
     
-    if show_area:
-        fig.add_trace(go.Scatter(
-            y=values, mode='lines',
-            line=dict(color=color, width=2.5),
-            fill='tozeroy',
-            fillcolor=f'rgba({int(color[1:3], 16)}, {int(color[3:5], 16)}, {int(color[5:7], 16)}, 0.3)',
-            showlegend=False
-        ))
-    else:
-        fig.add_trace(go.Scatter(
-            y=values, mode='lines',
-            line=dict(color=color, width=2.5),
-            showlegend=False
-        ))
+    # Add area trace
+    fig.add_trace(go.Scatter(
+        y=values,
+        mode='lines',
+        line=dict(color=color, width=2.5),
+        fill='tozeroy',
+        fillcolor=fill_color,
+        showlegend=False,
+        hovertemplate='Value: %{y:.1f}<extra></extra>'
+    ))
+    
+    # Add markers at start and end
+    fig.add_trace(go.Scatter(
+        x=[0, len(values)-1],
+        y=[values[0], values[-1]],
+        mode='markers',
+        marker=dict(size=6, color=color, line=dict(width=2, color='white')),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
     
     fig.update_layout(
-        height=50, width=100,
-        margin=dict(l=0, r=0, t=0, b=0),
-        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        height=60,
+        width=120,
+        margin=dict(l=0, r=0, t=5, b=0),
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, showline=False),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, showline=False),
         plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)'
+        paper_bgcolor='rgba(0,0,0,0)',
+        hovermode='closest'
     )
+    
     return fig
 
 def create_dynamic_horizontal_bar(df, x_col, y_col, title, color_scale='Reds'):
@@ -337,7 +288,7 @@ def create_dynamic_horizontal_bar(df, x_col, y_col, title, color_scale='Reds'):
         paper_bgcolor='rgba(0,0,0,0)',
         height=400,
         margin=dict(l=20, r=60, t=60, b=40),
-        yaxis=dict(autorange='reversed')  # Top to bottom
+        yaxis=dict(autorange='reversed')
     )
     
     fig.update_xaxes(showgrid=True, gridcolor='rgba(0,0,0,0.05)', zeroline=False)
@@ -350,10 +301,10 @@ def create_stacked_bar_improved(df, categories, values_dict, title):
     fig = go.Figure()
     
     colors = {
-        'Core Work': '#27ae60',  # Green
-        'Collaboration': '#3498db',  # Blue
-        'Admin': '#f39c12',  # Orange
-        'Repetitive': '#e74c3c'  # Red
+        'Core Work': '#27ae60',
+        'Collaboration': '#3498db',
+        'Admin': '#f39c12',
+        'Repetitive': '#e74c3c'
     }
     
     for name, values in values_dict.items():
@@ -399,7 +350,6 @@ def create_gradient_horizontal_bar(df, x_col, y_col, title):
     """IMPROVED: Create horizontal bar with beautiful gradient"""
     fig = go.Figure()
     
-    # Sort by value
     df_sorted = df.sort_values(x_col, ascending=True)
     
     fig.add_trace(go.Bar(
@@ -437,7 +387,6 @@ def create_trend_line_dual_axis(df, x_col, y1_col, y2_col, title):
     """Create trend line with dual Y-axis"""
     fig = go.Figure()
     
-    # Line for percentage
     fig.add_trace(go.Scatter(
         x=df[x_col],
         y=df[y1_col],
@@ -449,7 +398,6 @@ def create_trend_line_dual_axis(df, x_col, y1_col, y2_col, title):
         hovertemplate='%{x}<br>Low-Value: %{y:.1f}%<extra></extra>'
     ))
     
-    # Bars for cost
     fig.add_trace(go.Bar(
         x=df[x_col],
         y=df[y2_col],
@@ -527,10 +475,10 @@ if st.session_state.current_view == 'home':
             'signal': 'Monitor: ROI + Rework + Automation Coverage',
             'key': 'cost',
             'metrics': [
-                {'name': 'Rework Cost %', 'value': '4.3%', 'trend': '+6.7% vs last month', 'trend_type': 'down', 'sparkline': [4.5, 4.2, 4.8, 4.3, 4.1, 4.3], 'kpi_id': 'rework'},
-                {'name': 'Automation ROI', 'value': '979%', 'trend': '+101.1% vs last month', 'trend_type': 'up', 'sparkline': [850, 880, 920, 950, 970, 979], 'kpi_id': 'automation'},
-                {'name': 'Automation Coverage', 'value': '100%', 'trend': 'Process automation', 'trend_type': 'neutral', 'sparkline': [95, 96, 97, 98, 99, 100], 'kpi_id': 'coverage'},
-                {'name': 'Digital Index', 'value': '65.7', 'trend': '+31.4% vs last month', 'trend_type': 'up', 'sparkline': [50, 52, 58, 60, 63, 65.7], 'kpi_id': 'digital'},
+                {'name': 'Rework Cost %', 'value': '4.3%', 'trend': '+6.7% vs last month', 'trend_type': 'down', 'sparkline': [4.5, 4.2, 4.8, 4.3, 4.1, 4.3]},
+                {'name': 'Automation ROI', 'value': '979%', 'trend': '+101.1% vs last month', 'trend_type': 'up', 'sparkline': [850, 880, 920, 950, 970, 979]},
+                {'name': 'Automation Coverage', 'value': '100%', 'trend': 'Process automation', 'trend_type': 'neutral', 'sparkline': [95, 96, 97, 98, 99, 100]},
+                {'name': 'Digital Index', 'value': '65.7', 'trend': '+31.4% vs last month', 'trend_type': 'up', 'sparkline': [50, 52, 58, 60, 63, 65.7]},
             ]
         },
         {
@@ -538,10 +486,10 @@ if st.session_state.current_view == 'home':
             'signal': 'Monitor: Quality + Reliability + Risk',
             'key': 'execution',
             'metrics': [
-                {'name': 'FTR Rate', 'value': '75.3%', 'trend': '-10.2% vs last month', 'trend_type': 'down', 'sparkline': [80, 78, 76, 75, 74, 75.3], 'kpi_id': 'ftr'},
-                {'name': 'Process Adherence', 'value': '80.1%', 'trend': '-17.2% vs last month', 'trend_type': 'down', 'sparkline': [90, 88, 85, 82, 80, 80.1], 'kpi_id': 'adherence'},
-                {'name': 'Resilience Score', 'value': '6.1/10', 'trend': '+0.0% vs last month', 'trend_type': 'neutral', 'sparkline': [6.0, 6.1, 6.0, 6.1, 6.1, 6.1], 'kpi_id': 'resilience'},
-                {'name': 'Escalations', 'value': '1907', 'trend': '-67.6% vs last month', 'trend_type': 'up', 'sparkline': [2500, 2300, 2100, 2000, 1950, 1907], 'kpi_id': 'escalations'},
+                {'name': 'FTR Rate', 'value': '75.3%', 'trend': '-10.2% vs last month', 'trend_type': 'down', 'sparkline': [80, 78, 76, 75, 74, 75.3]},
+                {'name': 'Process Adherence', 'value': '80.1%', 'trend': '-17.2% vs last month', 'trend_type': 'down', 'sparkline': [90, 88, 85, 82, 80, 80.1]},
+                {'name': 'Resilience Score', 'value': '6.1/10', 'trend': '+0.0% vs last month', 'trend_type': 'neutral', 'sparkline': [6.0, 6.1, 6.0, 6.1, 6.1, 6.1]},
+                {'name': 'Escalations', 'value': '1907', 'trend': '-67.6% vs last month', 'trend_type': 'up', 'sparkline': [2500, 2300, 2100, 2000, 1950, 1907]},
             ]
         },
         {
@@ -549,10 +497,10 @@ if st.session_state.current_view == 'home':
             'signal': 'Monitor: Output + Capacity + Health',
             'key': 'workforce',
             'metrics': [
-                {'name': 'Output Index', 'value': '8.00', 'trend': '-5.5% vs last month', 'trend_type': 'down', 'sparkline': [8.5, 8.4, 8.3, 8.2, 8.1, 8.0], 'kpi_id': 'output'},
-                {'name': 'Capacity Utilization', 'value': '95%', 'trend': '+4.3% vs last month', 'trend_type': 'up', 'sparkline': [90, 91, 92, 93, 94, 95], 'kpi_id': 'capacity'},
-                {'name': 'Burnout Risk', 'value': '24', 'trend': 'Burnout risk count', 'trend_type': 'down', 'sparkline': [30, 28, 26, 25, 24, 24], 'kpi_id': 'burnout'},
-                {'name': 'Model Accuracy', 'value': '85%', 'trend': '+5.5% vs last month', 'trend_type': 'up', 'sparkline': [80, 81, 82, 83, 84, 85], 'kpi_id': 'model'},
+                {'name': 'Output Index', 'value': '8.00', 'trend': '-5.5% vs last month', 'trend_type': 'down', 'sparkline': [8.5, 8.4, 8.3, 8.2, 8.1, 8.0]},
+                {'name': 'Capacity Utilization', 'value': '95%', 'trend': '+4.3% vs last month', 'trend_type': 'up', 'sparkline': [90, 91, 92, 93, 94, 95]},
+                {'name': 'Burnout Risk', 'value': '24', 'trend': 'Burnout risk count', 'trend_type': 'down', 'sparkline': [30, 28, 26, 25, 24, 24]},
+                {'name': 'Model Accuracy', 'value': '85%', 'trend': '+5.5% vs last month', 'trend_type': 'up', 'sparkline': [80, 81, 82, 83, 84, 85]},
             ]
         }
     ]
@@ -566,27 +514,27 @@ if st.session_state.current_view == 'home':
                 </div>
             """, unsafe_allow_html=True)
             
-            # Display metrics with clickable cards
+            # Display metrics with clickable cards - ALL GO TO SAME DASHBOARD
             for metric in obj['metrics']:
                 trend_class = f"trend-{metric['trend_type']}"
                 
-                col_a, col_b = st.columns([4, 1])
+                col_a, col_b = st.columns([3, 1])
                 
                 with col_a:
-                    # Clickable button for each metric
-                    if st.button(f"📊 {metric['name']}", key=f"btn_{obj['key']}_{metric['kpi_id']}", use_container_width=True):
-                        navigate_to(obj['key'], metric['kpi_id'])
+                    # ALL BUTTONS FOR SAME OBJECTIVE GO TO SAME DASHBOARD
+                    if st.button(f"📊 {metric['name']}", key=f"btn_{obj['key']}_{metric['name']}", use_container_width=True):
+                        navigate_to(obj['key'])  # All cards navigate to the same view
                     
                     st.markdown(f"""
-                        <div class="subobjective-value">{metric['value']}</div>
-                        <div class="subobjective-trend {trend_class}">{metric['trend']}</div>
+                        <div class="metric-value">{metric['value']}</div>
+                        <div class="metric-trend {trend_class}">{metric['trend']}</div>
                     """, unsafe_allow_html=True)
                 
                 with col_b:
-                    # Sparkline
+                    # IMPROVED: Sparkline with trend-based colors
                     sparkline_fig = create_improved_sparkline(
                         metric['sparkline'],
-                        color='#ef4444' if obj['key'] == 'cost' else '#059669' if obj['key'] == 'execution' else '#f59e0b'
+                        trend_type=metric['trend_type']
                     )
                     st.plotly_chart(sparkline_fig, use_container_width=True, config={'displayModeBar': False})
                 
@@ -603,139 +551,124 @@ elif st.session_state.current_view == 'cost':
     with col2:
         st.markdown("## 💰 Cost & Efficiency Dashboard")
     
-    # Show different content based on selected KPI
-    if st.session_state.selected_kpi == 'rework':
-        st.markdown("### 📉 Rework Cost Analysis")
-        
-        process_data = create_mock_process_data()
-        dept_data = create_mock_department_data()
-        
-        # KPI Cards
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Total Rework Cost", "$99,483", delta="+6.7%", delta_color="inverse")
-        with col2:
-            st.metric("Rework Rate", "4.3%", delta="+0.3%", delta_color="inverse")
-        with col3:
-            st.metric("High-Risk Processes", "3", delta="-1", delta_color="inverse")
-        with col4:
-            st.metric("Avg Resolution Time", "2.4 days", delta="-0.5 days", delta_color="inverse")
-        
-        st.markdown("---")
-        
-        # IMPROVED: Charts side by side with vertical centering
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-            fig = create_dynamic_horizontal_bar(
-                process_data.sort_values('Rework_Cost', ascending=True),
-                'Rework_Cost',
-                'Process',
-                'By Process (Cost & %)',
-                color_scale='Reds'
-            )
-            st.plotly_chart(fig, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-            fig = create_dynamic_horizontal_bar(
-                dept_data.sort_values('Rework_Cost', ascending=True),
-                'Rework_Cost',
-                'Department',
-                'By Department',
-                color_scale='Reds'
-            )
-            st.plotly_chart(fig, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("### 📊 Role vs. Reality Analysis")
     
-    else:
-        # Default: Show Role vs Reality Analysis
-        st.markdown("### 📊 Role vs. Reality Analysis")
-        
+    try:
         role_reality_data = data['Role_vs_Reality']
-        latest_month = role_reality_data['Month'].max()
-        current_data = role_reality_data[role_reality_data['Month'] == latest_month]
         
-        # KPI Cards
-        col1, col2, col3, col4 = st.columns(4)
-        
-        total_opportunity_cost = current_data['Opportunity_Cost_Monthly'].sum()
-        avg_low_value_pct = current_data['Low_Value_Percentage'].mean()
-        high_risk_roles = len(current_data[current_data['Low_Value_Percentage'] > 30])
-        annualized_cost = total_opportunity_cost * 12
-        
-        with col1:
-            st.metric("Monthly Opportunity Cost", f"${total_opportunity_cost:,.0f}", delta="-12%", delta_color="inverse")
-        with col2:
-            st.metric("Avg Low-Value Work", f"{avg_low_value_pct:.1f}%", delta="-5%", delta_color="inverse")
-        with col3:
-            st.metric("High-Risk Roles (>30%)", f"{high_risk_roles}", delta="-2", delta_color="inverse")
-        with col4:
-            st.metric("Annualized Impact", f"${annualized_cost:,.0f}")
-        
-        st.markdown("---")
-        
-        # IMPROVED: Charts with vertical centering
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-            role_breakdown = current_data.groupby('Role').agg({
-                'Core_Hours': 'mean',
-                'Admin_Hours': 'mean',
-                'Repetitive_Hours': 'mean',
-                'Collaboration_Hours': 'mean'
-            }).round(1).reset_index()
+        if role_reality_data.empty:
+            st.error("No data available")
+        else:
+            latest_month = role_reality_data['Month'].max()
+            current_data = role_reality_data[role_reality_data['Month'] == latest_month]
             
-            fig = create_stacked_bar_improved(
-                role_breakdown,
-                role_breakdown['Role'].tolist(),
-                {
-                    'Core Work': role_breakdown['Core_Hours'].tolist(),
-                    'Collaboration': role_breakdown['Collaboration_Hours'].tolist(),
-                    'Admin': role_breakdown['Admin_Hours'].tolist(),
-                    'Repetitive': role_breakdown['Repetitive_Hours'].tolist()
-                },
-                "Time Allocation by Role"
-            )
-            st.plotly_chart(fig, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-            role_cost = current_data.groupby('Role').agg({
-                'Opportunity_Cost_Monthly': 'sum'
-            }).sort_values('Opportunity_Cost_Monthly', ascending=True).reset_index()
+            # KPI Cards with error handling
+            col1, col2, col3, col4 = st.columns(4)
             
-            fig = create_gradient_horizontal_bar(
-                role_cost,
-                'Opportunity_Cost_Monthly',
-                'Role',
-                "Opportunity Cost by Role"
-            )
-            st.plotly_chart(fig, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Trend Over Time
-        st.markdown("### 📈 Trend Over Time")
-        
-        monthly_trend = role_reality_data.groupby('Month').agg({
-            'Low_Value_Percentage': 'mean',
-            'Opportunity_Cost_Monthly': 'sum'
-        }).reset_index()
-        
-        monthly_trend['Month_Str'] = monthly_trend['Month'].dt.strftime('%Y-%m')
-        
-        fig = create_trend_line_dual_axis(
-            monthly_trend,
-            'Month_Str',
-            'Low_Value_Percentage',
-            'Opportunity_Cost_Monthly',
-            'Low-Value Work Trend Over Time'
-        )
-        st.plotly_chart(fig, use_container_width=True)
+            # Safe calculation with error handling
+            if 'Opportunity_Cost_Monthly' in current_data.columns:
+                total_opportunity_cost = current_data['Opportunity_Cost_Monthly'].sum()
+                annualized_cost = total_opportunity_cost * 12
+            else:
+                total_opportunity_cost = 0
+                annualized_cost = 0
+            
+            if 'Low_Value_Percentage' in current_data.columns:
+                avg_low_value_pct = current_data['Low_Value_Percentage'].mean()
+                high_risk_roles = len(current_data[current_data['Low_Value_Percentage'] > 30])
+            else:
+                avg_low_value_pct = 0
+                high_risk_roles = 0
+            
+            with col1:
+                st.metric("Monthly Opportunity Cost", f"${total_opportunity_cost:,.0f}", delta="-12%", delta_color="inverse")
+            with col2:
+                st.metric("Avg Low-Value Work", f"{avg_low_value_pct:.1f}%", delta="-5%", delta_color="inverse")
+            with col3:
+                st.metric("High-Risk Roles (>30%)", f"{high_risk_roles}", delta="-2", delta_color="inverse")
+            with col4:
+                st.metric("Annualized Impact", f"${annualized_cost:,.0f}")
+            
+            st.markdown("---")
+            
+            # Charts with error handling
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                try:
+                    required_cols = ['Role', 'Core_Hours', 'Admin_Hours', 'Repetitive_Hours', 'Collaboration_Hours']
+                    if all(col in current_data.columns for col in required_cols):
+                        role_breakdown = current_data.groupby('Role').agg({
+                            'Core_Hours': 'mean',
+                            'Admin_Hours': 'mean',
+                            'Repetitive_Hours': 'mean',
+                            'Collaboration_Hours': 'mean'
+                        }).round(1).reset_index()
+                        
+                        fig = create_stacked_bar_improved(
+                            role_breakdown,
+                            role_breakdown['Role'].tolist(),
+                            {
+                                'Core Work': role_breakdown['Core_Hours'].tolist(),
+                                'Collaboration': role_breakdown['Collaboration_Hours'].tolist(),
+                                'Admin': role_breakdown['Admin_Hours'].tolist(),
+                                'Repetitive': role_breakdown['Repetitive_Hours'].tolist()
+                            },
+                            "Time Allocation by Role"
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.error("Required columns missing for Time Allocation chart")
+                except Exception as e:
+                    st.error(f"Error creating Time Allocation chart: {str(e)}")
+            
+            with col2:
+                try:
+                    if 'Role' in current_data.columns and 'Opportunity_Cost_Monthly' in current_data.columns:
+                        role_cost = current_data.groupby('Role').agg({
+                            'Opportunity_Cost_Monthly': 'sum'
+                        }).sort_values('Opportunity_Cost_Monthly', ascending=True).reset_index()
+                        
+                        fig = create_gradient_horizontal_bar(
+                            role_cost,
+                            'Opportunity_Cost_Monthly',
+                            'Role',
+                            "Opportunity Cost by Role"
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.error("Required columns missing for Opportunity Cost chart")
+                except Exception as e:
+                    st.error(f"Error creating Opportunity Cost chart: {str(e)}")
+            
+            # Trend Over Time
+            st.markdown("### 📈 Trend Over Time")
+            
+            try:
+                if 'Month' in role_reality_data.columns and 'Low_Value_Percentage' in role_reality_data.columns and 'Opportunity_Cost_Monthly' in role_reality_data.columns:
+                    monthly_trend = role_reality_data.groupby('Month').agg({
+                        'Low_Value_Percentage': 'mean',
+                        'Opportunity_Cost_Monthly': 'sum'
+                    }).reset_index()
+                    
+                    monthly_trend['Month_Str'] = monthly_trend['Month'].dt.strftime('%Y-%m')
+                    
+                    fig = create_trend_line_dual_axis(
+                        monthly_trend,
+                        'Month_Str',
+                        'Low_Value_Percentage',
+                        'Opportunity_Cost_Monthly',
+                        'Low-Value Work Trend Over Time'
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.error("Required columns missing for Trend chart")
+            except Exception as e:
+                st.error(f"Error creating Trend chart: {str(e)}")
+    
+    except Exception as e:
+        st.error(f"Error loading Cost & Efficiency dashboard: {str(e)}")
+        st.info("Please check that your data file has the required columns.")
 
 # ==================== EXECUTION & RESILIENCE VIEW ====================
 elif st.session_state.current_view == 'execution':
@@ -763,7 +696,7 @@ elif st.session_state.current_view == 'workforce':
 st.divider()
 st.markdown(f"""
     <div style="text-align: center; padding: 15px; color: #6b7280; font-size: 11px;">
-        <strong>COO Dashboard - Enhanced Version v2.0</strong> | 
+        <strong>COO Dashboard - Enhanced Version v2.1</strong> | 
         Updated: {datetime.now().strftime('%Y-%m-%d %H:%M')}
     </div>
 """, unsafe_allow_html=True)
